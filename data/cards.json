@@ -1,14 +1,22 @@
 [
   {
     "id": "card-001",
-    "text": "This is the first example card."
+    "text": "Don’t let your mind bully your body into believing it must carry the burden of its worries."
   },
   {
     "id": "card-002",
-    "text": "This is the second example card."
+    "text": "Your mind is your instrument. Learn to be its master and not its slave."
   },
   {
     "id": "card-003",
-    "text": "This is the third example card."
+    "text": "No amount of anxiety makes any difference to anything that is going to happen."
+  },
+  {
+    "id": "card-d788ad58-acda-4038-b1a6-c0ccc1f64afb",
+    "text": "Whatever is going to happen will happen, whether we worry or not."
+  },
+  {
+    "id": "card-aa6eb165-1754-4c42-88d5-b6cc8261b1b6",
+    "text": "Do what you can, with what you’ve got, where you are."
   }
 ]
