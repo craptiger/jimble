@@ -77,9 +77,6 @@ function renderCards() {
     const idInput =
       fragment.querySelector(".card-id");
 
-    const titleInput =
-      fragment.querySelector(".card-title");
-
     const textInput =
       fragment.querySelector(".card-text");
 
@@ -88,18 +85,7 @@ function renderCards() {
 
 
     idInput.value = card.id;
-    titleInput.value = card.title || "";
     textInput.value = card.text || "";
-
-
-    titleInput.addEventListener("input", () => {
-
-      card.title = titleInput.value;
-
-      markChanged();
-
-    });
-
 
     textInput.addEventListener("input", () => {
 
@@ -136,7 +122,6 @@ function addCard() {
 
   const card = {
     id: createCardId(),
-    title: "",
     text: ""
   };
 
@@ -161,11 +146,11 @@ function addCard() {
       behavior: "smooth",
       block: "center"
     });
-
-    const titleInput =
-      newCardElement.querySelector(".card-title");
-
-    titleInput?.focus();
+    
+    const textInput =
+      newCardElement.querySelector(".card-text");
+    
+    textInput?.focus();
 
   }
 
@@ -184,9 +169,8 @@ function deleteCard(id) {
     return;
   }
 
-
-  const label =
-    card.title.trim() || card.id;
+const label =
+  card.text.trim().slice(0, 60) || card.id;
 
 
   const confirmed =
@@ -278,24 +262,12 @@ function validateCards() {
 
     }
 
-
-    if (!card.title.trim()) {
-
-      return {
-        valid: false,
-        message:
-          `Card ${card.id} needs a title.`
-      };
-
-    }
-
-
     if (!card.text.trim()) {
 
       return {
         valid: false,
         message:
-          `Card "${card.title}" needs some text.`
+          `Card ${card.id} needs some text.`
       };
 
     }
