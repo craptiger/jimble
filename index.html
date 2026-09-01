@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta name="theme-color" content="#202020">
+
+  <title>Jimble</title>
+
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <main class="app">
+
+    <div
+      id="card"
+      class="card deck"
+      role="button"
+      tabindex="0"
+      aria-label="Draw a random card"
+    >
+
+      <div id="deckView" class="deck-view">
+        <div class="deck-card deck-card-3"></div>
+        <div class="deck-card deck-card-2"></div>
+
+        <div class="deck-card deck-card-1">
+          <div class="deck-pattern">
+            <span class="app-name">JIMBLE</span>
+            <span class="tap-message">Tap to draw a card</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="cardView" class="card-view hidden">
+        <h1 id="cardTitle"></h1>
+        <p id="cardText"></p>
+        <span class="tap-message">Tap for another card</span>
+      </div>
+
+    </div>
+
+    <p id="status" class="status" aria-live="polite"></p>
+
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
