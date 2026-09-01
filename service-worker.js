@@ -1,4 +1,4 @@
-const CACHE_NAME = "jimble-v1.1";
+const CACHE_NAME = "jimble-v1.2";
 
 const APP_FILES = [
   "./",
