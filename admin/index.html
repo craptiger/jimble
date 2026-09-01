@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta name="theme-color" content="#202020">
+
+  <title>Jimble Admin</title>
+
+  <link rel="stylesheet" href="./admin.css">
+</head>
+
+<body>
+  <main class="admin-app">
+
+    <header class="admin-header">
+      <div>
+        <h1>Jimble Admin</h1>
+        <p id="cardCount">0 cards</p>
+      </div>
+
+      <a class="view-app-link" href="../">
+        View app
+      </a>
+    </header>
+
+
+    <section class="toolbar">
+
+      <button
+        id="addCardButton"
+        class="button primary"
+        type="button"
+      >
+        Add card
+      </button>
+
+      <button
+        id="saveButton"
+        class="button"
+        type="button"
+        disabled
+      >
+        Save changes
+      </button>
+
+    </section>
+
+
+    <p
+      id="status"
+      class="status"
+      aria-live="polite"
+    ></p>
+
+
+    <section
+      id="cardList"
+      class="card-list"
+    ></section>
+
+  </main>
+
+
+  <template id="cardTemplate">
+
+    <article class="admin-card">
+
+      <div class="field">
+        <label>
+          ID
+          <input
+            class="card-id"
+            type="text"
+            readonly
+          >
+        </label>
+      </div>
+
+
+      <div class="field">
+        <label>
+          Title
+
+          <input
+            class="card-title"
+            type="text"
+            maxlength="120"
+          >
+        </label>
+      </div>
+
+
+      <div class="field">
+        <label>
+          Text
+
+          <textarea
+            class="card-text"
+            rows="5"
+            maxlength="1000"
+          ></textarea>
+        </label>
+      </div>
+
+
+      <div class="card-actions">
+
+        <button
+          class="button danger delete-card-button"
+          type="button"
+        >
+          Delete
+        </button>
+
+      </div>
+
+    </article>
+
+  </template>
+
+
+  <script src="./admin.js"></script>
+</body>
+</html>
