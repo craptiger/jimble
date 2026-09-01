@@ -8,6 +8,7 @@ const deckView = document.getElementById("deckView");
 const cardView = document.getElementById("cardView");
 
 const cardText = document.getElementById("cardText");
+const cardCounter = document.getElementById("cardCounter");
 
 const statusElement = document.getElementById("status");
 
@@ -147,9 +148,6 @@ function chooseRandomCard() {
     getRecentCardIds();
 
 
-  /*
-   * Exclude cards used recently.
-   */
   let eligibleCards =
     cards.filter(
       card => !recentIds.includes(card.id)
@@ -157,9 +155,7 @@ function chooseRandomCard() {
 
 
   /*
-   * If the deck is too small for a full
-   * 3-card exclusion window, fall back
-   * gracefully rather than getting stuck.
+   * Fallback for very small decks.
    */
   if (eligibleCards.length === 0) {
 
@@ -180,8 +176,8 @@ function chooseRandomCard() {
 
 
 /*
- * Perform the shuffle animation and then
- * reveal the selected card.
+ * Perform the shuffle animation and reveal
+ * the selected card.
  */
 function drawCard() {
 
@@ -207,18 +203,12 @@ function drawCard() {
     showCard(selectedCard);
 
 
-    /*
-     * Remember current card for refresh.
-     */
     localStorage.setItem(
       STORAGE_KEY,
       selectedCard.id
     );
 
 
-    /*
-     * Remember it for the 3-card exclusion.
-     */
     rememberCard(
       selectedCard.id
     );
@@ -255,6 +245,21 @@ function showCard(card) {
 
   cardText.textContent = card.text;
 
+
+  /*
+   * Find this card's position in the
+   * current published deck.
+   */
+  const cardIndex =
+    cards.findIndex(
+      item => item.id === card.id
+    );
+
+
+  cardCounter.textContent =
+    `${cardIndex + 1} of ${cards.length}`;
+
+
   deckView.classList.add("hidden");
   cardView.classList.remove("hidden");
 
@@ -273,6 +278,8 @@ function showEmptyDeck() {
 
   cardText.textContent =
     "There are currently no cards in this deck.";
+
+  cardCounter.textContent = "0 of 0";
 
   statusElement.textContent = "";
 
