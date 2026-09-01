@@ -4,7 +4,6 @@ const cardElement = document.getElementById("card");
 const deckView = document.getElementById("deckView");
 const cardView = document.getElementById("cardView");
 
-const cardTitle = document.getElementById("cardTitle");
 const cardText = document.getElementById("cardText");
 
 const statusElement = document.getElementById("status");
@@ -131,7 +130,6 @@ function showDeck() {
  * Display a selected card.
  */
 function showCard(card) {
-  cardTitle.textContent = card.title;
   cardText.textContent = card.text;
 
   deckView.classList.add("hidden");
@@ -140,7 +138,6 @@ function showCard(card) {
   statusElement.textContent = "";
 }
 
-
 /*
  * Handle an empty deck gracefully.
  */
@@ -148,7 +145,6 @@ function showEmptyDeck() {
   deckView.classList.add("hidden");
   cardView.classList.remove("hidden");
 
-  cardTitle.textContent = "No cards";
   cardText.textContent =
     "There are currently no cards in this deck.";
 
