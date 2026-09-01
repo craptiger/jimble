@@ -1,3 +1,5 @@
+const DRAFT_STORAGE_KEY = "jimble-admin-draft-v1";
+
 const cardList = document.getElementById("cardList");
 const cardTemplate = document.getElementById("cardTemplate");
 
@@ -12,8 +14,9 @@ let hasUnsavedChanges = false;
 
 
 /*
- * Load the deck from the same JSON file
- * used by the main application.
+ * Load the published deck.
+ *
+ * If a local draft exists, restore that instead.
  */
 async function loadCards() {
 
@@ -31,15 +34,45 @@ async function loadCards() {
       );
     }
 
-    const data = await response.json();
+    const publishedCards = await response.json();
 
-    if (!Array.isArray(data)) {
+    if (!Array.isArray(publishedCards)) {
       throw new Error(
         "cards.json does not contain a valid card array."
       );
     }
 
-    cards = data;
+
+    /*
+     * Prefer a locally saved draft if one exists.
+     */
+    const draft = loadLocalDraft();
+
+    if (draft) {
+
+      cards = draft.cards;
+
+      hasUnsavedChanges = true;
+      saveButton.disabled = false;
+
+      renderCards();
+
+      setStatus(
+        "Local draft restored.",
+        "success"
+      );
+
+      return;
+    }
+
+
+    /*
+     * Otherwise use the published deck.
+     */
+    cards = publishedCards;
+
+    hasUnsavedChanges = false;
+    saveButton.disabled = true;
 
     renderCards();
 
@@ -48,6 +81,30 @@ async function loadCards() {
   } catch (error) {
 
     console.error(error);
+
+    /*
+     * If the network failed, we may still have
+     * a locally saved admin draft.
+     */
+    const draft = loadLocalDraft();
+
+    if (draft) {
+
+      cards = draft.cards;
+
+      hasUnsavedChanges = true;
+      saveButton.disabled = false;
+
+      renderCards();
+
+      setStatus(
+        "Working from locally saved draft.",
+        "success"
+      );
+
+      return;
+    }
+
 
     setStatus(
       error.message || "Unable to load cards.",
@@ -86,6 +143,7 @@ function renderCards() {
 
     idInput.value = card.id;
     textInput.value = card.text || "";
+
 
     textInput.addEventListener("input", () => {
 
@@ -146,10 +204,10 @@ function addCard() {
       behavior: "smooth",
       block: "center"
     });
-    
+
     const textInput =
       newCardElement.querySelector(".card-text");
-    
+
     textInput?.focus();
 
   }
@@ -169,8 +227,9 @@ function deleteCard(id) {
     return;
   }
 
-const label =
-  card.text.trim().slice(0, 60) || card.id;
+
+  const label =
+    card.text.trim().slice(0, 60) || card.id;
 
 
   const confirmed =
@@ -196,8 +255,7 @@ const label =
 
 
 /*
- * Generate an ID that is highly unlikely
- * to collide with an existing card.
+ * Generate a unique card ID.
  */
 function createCardId() {
 
@@ -219,8 +277,9 @@ function createCardId() {
 
 
 /*
- * Mark the page as containing edits
- * that have not yet been saved.
+ * A change has been made.
+ *
+ * Save it immediately as a local browser draft.
  */
 function markChanged() {
 
@@ -228,7 +287,111 @@ function markChanged() {
 
   saveButton.disabled = false;
 
-  setStatus("Unsaved changes");
+  saveLocalDraft();
+
+}
+
+
+/*
+ * Save the current working deck to localStorage.
+ */
+function saveLocalDraft() {
+
+  try {
+
+    const draft = {
+      cards: cards,
+      savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify(draft)
+    );
+
+    setStatus(
+      "Local draft saved.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Unable to save local draft:",
+      error
+    );
+
+    setStatus(
+      "Unable to save local draft.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/*
+ * Load a previously saved local draft.
+ */
+function loadLocalDraft() {
+
+  try {
+
+    const stored =
+      localStorage.getItem(DRAFT_STORAGE_KEY);
+
+    if (!stored) {
+      return null;
+    }
+
+
+    const draft = JSON.parse(stored);
+
+    if (
+      !draft ||
+      !Array.isArray(draft.cards)
+    ) {
+
+      localStorage.removeItem(
+        DRAFT_STORAGE_KEY
+      );
+
+      return null;
+    }
+
+
+    return draft;
+
+  } catch (error) {
+
+    console.error(
+      "Unable to load local draft:",
+      error
+    );
+
+    localStorage.removeItem(
+      DRAFT_STORAGE_KEY
+    );
+
+    return null;
+
+  }
+
+}
+
+
+/*
+ * Remove the local draft.
+ *
+ * We will call this after a successful
+ * GitHub save in the next stage.
+ */
+function clearLocalDraft() {
+
+  localStorage.removeItem(
+    DRAFT_STORAGE_KEY
+  );
 
 }
 
@@ -247,7 +410,7 @@ function updateCardCount() {
 
 
 /*
- * Basic validation.
+ * Validate the deck.
  */
 function validateCards() {
 
@@ -261,6 +424,7 @@ function validateCards() {
       };
 
     }
+
 
     if (!card.text.trim()) {
 
@@ -283,8 +447,11 @@ function validateCards() {
 
 
 /*
- * Save will be connected to GitHub
- * in the next step.
+ * For now this validates and guarantees
+ * the current deck is stored locally.
+ *
+ * The next step will replace this with
+ * the GitHub commit operation.
  */
 function saveChanges() {
 
@@ -303,14 +470,17 @@ function saveChanges() {
   }
 
 
+  saveLocalDraft();
+
+
   console.log(
-    "Cards ready to save:",
+    "Cards ready to save to GitHub:",
     cards
   );
 
 
   setStatus(
-    "Cards are valid. GitHub saving will be added next.",
+    "Changes saved locally. Ready to publish to GitHub.",
     "success"
   );
 
@@ -335,8 +505,11 @@ function setStatus(message, type = "") {
 
 
 /*
- * Warn if the user tries to leave
- * while changes are unsaved.
+ * Warn if leaving with changes that
+ * have not yet been published to GitHub.
+ *
+ * The changes themselves are safe because
+ * they have already been stored locally.
  */
 window.addEventListener(
   "beforeunload",
