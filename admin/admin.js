@@ -1,5 +1,10 @@
 const DRAFT_STORAGE_KEY = "jimble-admin-draft-v1";
 
+const GITHUB_OWNER = "craptiger";
+const GITHUB_REPO = "jimble";
+const GITHUB_BRANCH = "main";
+const GITHUB_FILE_PATH = "data/cards.json";
+
 const cardList = document.getElementById("cardList");
 const cardTemplate = document.getElementById("cardTemplate");
 
@@ -11,6 +16,14 @@ const saveButton = document.getElementById("saveButton");
 
 let cards = [];
 let hasUnsavedChanges = false;
+
+/*
+ * The GitHub token exists only in memory.
+ *
+ * It is forgotten whenever the Admin page
+ * is refreshed or closed.
+ */
+let githubToken = null;
 
 
 /*
@@ -82,9 +95,10 @@ async function loadCards() {
 
     console.error(error);
 
+
     /*
-     * If the network failed, we may still have
-     * a locally saved admin draft.
+     * If the network failed, we may still
+     * have a locally saved draft.
      */
     const draft = loadLocalDraft();
 
@@ -122,6 +136,7 @@ async function loadCards() {
 function renderCards() {
 
   cardList.innerHTML = "";
+
 
   cards.forEach(card => {
 
@@ -277,9 +292,10 @@ function createCardId() {
 
 
 /*
- * A change has been made.
+ * Mark the working deck as changed.
  *
- * Save it immediately as a local browser draft.
+ * Every change is immediately protected
+ * by saving a draft locally.
  */
 function markChanged() {
 
@@ -293,7 +309,7 @@ function markChanged() {
 
 
 /*
- * Save the current working deck to localStorage.
+ * Save the current working deck locally.
  */
 function saveLocalDraft() {
 
@@ -332,7 +348,7 @@ function saveLocalDraft() {
 
 
 /*
- * Load a previously saved local draft.
+ * Load a saved local draft.
  */
 function loadLocalDraft() {
 
@@ -382,10 +398,8 @@ function loadLocalDraft() {
 
 
 /*
- * Remove the local draft.
- *
- * We will call this after a successful
- * GitHub save in the next stage.
+ * Remove the local draft after GitHub
+ * has successfully accepted the update.
  */
 function clearLocalDraft() {
 
@@ -397,7 +411,7 @@ function clearLocalDraft() {
 
 
 /*
- * Count cards.
+ * Update the displayed card count.
  */
 function updateCardCount() {
 
@@ -410,9 +424,12 @@ function updateCardCount() {
 
 
 /*
- * Validate the deck.
+ * Validate the deck before publishing.
  */
 function validateCards() {
+
+  const seenIds = new Set();
+
 
   for (const card of cards) {
 
@@ -426,7 +443,24 @@ function validateCards() {
     }
 
 
-    if (!card.text.trim()) {
+    if (seenIds.has(card.id)) {
+
+      return {
+        valid: false,
+        message:
+          `Duplicate card ID: ${card.id}`
+      };
+
+    }
+
+
+    seenIds.add(card.id);
+
+
+    if (
+      typeof card.text !== "string" ||
+      !card.text.trim()
+    ) {
 
       return {
         valid: false,
@@ -447,15 +481,263 @@ function validateCards() {
 
 
 /*
- * For now this validates and guarantees
- * the current deck is stored locally.
- *
- * The next step will replace this with
- * the GitHub commit operation.
+ * Ask for the GitHub token if we do not
+ * already have one during this page session.
  */
-function saveChanges() {
+function getGitHubToken() {
 
-  const validation = validateCards();
+  if (githubToken) {
+    return githubToken;
+  }
+
+
+  const enteredToken = window.prompt(
+    "Enter your GitHub personal access token.\n\n" +
+    "It will only be kept in memory until this page is closed or refreshed."
+  );
+
+
+  if (!enteredToken) {
+    return null;
+  }
+
+
+  githubToken = enteredToken.trim();
+
+  return githubToken;
+
+}
+
+
+/*
+ * Encode UTF-8 text as Base64 for GitHub.
+ */
+function textToBase64(text) {
+
+  const bytes =
+    new TextEncoder().encode(text);
+
+  let binary = "";
+
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+
+  return btoa(binary);
+
+}
+
+
+/*
+ * Read the current cards.json metadata
+ * directly from GitHub.
+ *
+ * We need its SHA before GitHub will allow
+ * us to replace the existing file.
+ */
+async function getGitHubFile(token) {
+
+  const url =
+    `https://api.github.com/repos/` +
+    `${GITHUB_OWNER}/${GITHUB_REPO}/contents/` +
+    `${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+
+
+  const response = await fetch(url, {
+
+    method: "GET",
+
+    headers: {
+      "Accept":
+        "application/vnd.github+json",
+
+      "Authorization":
+        `Bearer ${token}`,
+
+      "X-GitHub-Api-Version":
+        "2022-11-28"
+    }
+
+  });
+
+
+  if (response.status === 401) {
+
+    githubToken = null;
+
+    throw new Error(
+      "GitHub rejected the token. Please check it and try again."
+    );
+
+  }
+
+
+  if (response.status === 403) {
+
+    throw new Error(
+      "The token does not have permission to update this repository."
+    );
+
+  }
+
+
+  if (response.status === 404) {
+
+    throw new Error(
+      "GitHub could not find data/cards.json in the repository."
+    );
+
+  }
+
+
+  if (!response.ok) {
+
+    throw new Error(
+      `GitHub returned error ${response.status}.`
+    );
+
+  }
+
+
+  return response.json();
+
+}
+
+
+/*
+ * Publish the complete deck to GitHub.
+ */
+async function publishToGitHub(
+  token,
+  currentFileSha
+) {
+
+  const url =
+    `https://api.github.com/repos/` +
+    `${GITHUB_OWNER}/${GITHUB_REPO}/contents/` +
+    `${GITHUB_FILE_PATH}`;
+
+
+  /*
+   * Produce clean, readable JSON in GitHub.
+   */
+  const json =
+    JSON.stringify(cards, null, 2) + "\n";
+
+
+  const response = await fetch(url, {
+
+    method: "PUT",
+
+    headers: {
+
+      "Accept":
+        "application/vnd.github+json",
+
+      "Authorization":
+        `Bearer ${token}`,
+
+      "X-GitHub-Api-Version":
+        "2022-11-28",
+
+      "Content-Type":
+        "application/json"
+
+    },
+
+
+    body: JSON.stringify({
+
+      message:
+        "Update Jimble cards",
+
+      content:
+        textToBase64(json),
+
+      sha:
+        currentFileSha,
+
+      branch:
+        GITHUB_BRANCH
+
+    })
+
+  });
+
+
+  if (response.status === 401) {
+
+    githubToken = null;
+
+    throw new Error(
+      "GitHub rejected the token. Please check it and try again."
+    );
+
+  }
+
+
+  if (response.status === 403) {
+
+    throw new Error(
+      "The token does not have permission to update this repository."
+    );
+
+  }
+
+
+  if (response.status === 409) {
+
+    throw new Error(
+      "The GitHub file changed while you were editing. Please refresh Admin and try again."
+    );
+
+  }
+
+
+  if (!response.ok) {
+
+    let details = "";
+
+    try {
+
+      const errorBody =
+        await response.json();
+
+      if (errorBody.message) {
+        details = ` ${errorBody.message}`;
+      }
+
+    } catch {
+      // Ignore unreadable GitHub error body.
+    }
+
+
+    throw new Error(
+      `GitHub returned error ${response.status}.${details}`
+    );
+
+  }
+
+
+  return response.json();
+
+}
+
+
+/*
+ * Validate and publish the deck.
+ */
+async function saveChanges() {
+
+  if (!hasUnsavedChanges) {
+    return;
+  }
+
+
+  const validation =
+    validateCards();
 
 
   if (!validation.valid) {
@@ -470,19 +752,100 @@ function saveChanges() {
   }
 
 
+  /*
+   * Make sure the latest work is safely
+   * stored locally before attempting GitHub.
+   */
   saveLocalDraft();
 
 
-  console.log(
-    "Cards ready to save to GitHub:",
-    cards
-  );
+  const token =
+    getGitHubToken();
 
+
+  if (!token) {
+
+    setStatus(
+      "Publish cancelled. Your changes are still saved locally."
+    );
+
+    return;
+
+  }
+
+
+  saveButton.disabled = true;
+  addCardButton.disabled = true;
 
   setStatus(
-    "Changes saved locally. Ready to publish to GitHub.",
-    "success"
+    "Publishing to GitHub..."
   );
+
+
+  try {
+
+    /*
+     * First get the current GitHub file SHA.
+     */
+    const currentFile =
+      await getGitHubFile(token);
+
+
+    if (!currentFile.sha) {
+
+      throw new Error(
+        "GitHub did not return the current file version."
+      );
+
+    }
+
+
+    /*
+     * Then replace cards.json.
+     */
+    await publishToGitHub(
+      token,
+      currentFile.sha
+    );
+
+
+    /*
+     * GitHub has accepted the commit.
+     */
+    clearLocalDraft();
+
+    hasUnsavedChanges = false;
+
+    saveButton.disabled = true;
+    addCardButton.disabled = false;
+
+
+    setStatus(
+      "Published to GitHub. The live app will update shortly.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+
+    /*
+     * The local draft remains intact if
+     * anything goes wrong.
+     */
+    saveButton.disabled = false;
+    addCardButton.disabled = false;
+
+
+    setStatus(
+      error.message ||
+      "Unable to publish to GitHub.",
+      "error"
+    );
+
+  }
 
 }
 
@@ -505,11 +868,10 @@ function setStatus(message, type = "") {
 
 
 /*
- * Warn if leaving with changes that
+ * Warn if the user leaves while changes
  * have not yet been published to GitHub.
  *
- * The changes themselves are safe because
- * they have already been stored locally.
+ * The draft itself is still safe locally.
  */
 window.addEventListener(
   "beforeunload",
@@ -543,6 +905,6 @@ saveButton.addEventListener(
 
 
 /*
- * Start admin.
+ * Start Admin.
  */
 loadCards();
