@@ -1,0 +1,24 @@
+{
+  "id": "./",
+  "name": "Jimble",
+  "short_name": "Jimble",
+  "description": "Draw a random card from the Jimble deck.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#202020",
+  "theme_color": "#7e2735",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
