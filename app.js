@@ -1,4 +1,7 @@
 const STORAGE_KEY = "jimble-current-card";
+const HISTORY_STORAGE_KEY = "jimble-recent-cards";
+
+const RECENT_CARD_LIMIT = 3;
 
 const cardElement = document.getElementById("card");
 const deckView = document.getElementById("deckView");
@@ -16,7 +19,9 @@ let isShuffling = false;
  * Load the deck.
  */
 async function loadCards() {
+
   try {
+
     const response = await fetch("./data/cards.json", {
       cache: "no-cache"
     });
@@ -35,11 +40,14 @@ async function loadCards() {
     restorePreviousCard();
 
   } catch (error) {
+
     console.error(error);
 
     statusElement.textContent =
       "The card deck could not be loaded.";
+
   }
+
 }
 
 
@@ -48,38 +56,126 @@ async function loadCards() {
  * when the user last used Jimble.
  */
 function restorePreviousCard() {
-  const savedId = localStorage.getItem(STORAGE_KEY);
+
+  const savedId =
+    localStorage.getItem(STORAGE_KEY);
 
   if (!savedId) {
     showDeck();
     return;
   }
 
-  const savedCard = cards.find(
-    card => card.id === savedId
-  );
+  const savedCard =
+    cards.find(card => card.id === savedId);
 
   if (!savedCard) {
+
     localStorage.removeItem(STORAGE_KEY);
+
     showDeck();
+
     return;
+
   }
 
   showCard(savedCard);
+
 }
 
 
 /*
- * Pick a completely independent random card.
- *
- * The currently visible card is NOT excluded.
- * The same card can therefore legitimately
- * be drawn twice consecutively.
+ * Get the recently shown card IDs.
+ */
+function getRecentCardIds() {
+
+  try {
+
+    const stored =
+      localStorage.getItem(
+        HISTORY_STORAGE_KEY
+      );
+
+    if (!stored) {
+      return [];
+    }
+
+    const history = JSON.parse(stored);
+
+    if (!Array.isArray(history)) {
+      return [];
+    }
+
+    return history;
+
+  } catch {
+
+    return [];
+
+  }
+
+}
+
+
+/*
+ * Save a card into recent history.
+ */
+function rememberCard(cardId) {
+
+  let history =
+    getRecentCardIds();
+
+  history.push(cardId);
+
+  history =
+    history.slice(-RECENT_CARD_LIMIT);
+
+  localStorage.setItem(
+    HISTORY_STORAGE_KEY,
+    JSON.stringify(history)
+  );
+
+}
+
+
+/*
+ * Choose a random card that has not
+ * appeared in the last 3 draws.
  */
 function chooseRandomCard() {
-  const index = Math.floor(Math.random() * cards.length);
 
-  return cards[index];
+  const recentIds =
+    getRecentCardIds();
+
+
+  /*
+   * Exclude cards used recently.
+   */
+  let eligibleCards =
+    cards.filter(
+      card => !recentIds.includes(card.id)
+    );
+
+
+  /*
+   * If the deck is too small for a full
+   * 3-card exclusion window, fall back
+   * gracefully rather than getting stuck.
+   */
+  if (eligibleCards.length === 0) {
+
+    eligibleCards = cards;
+
+  }
+
+
+  const index =
+    Math.floor(
+      Math.random() * eligibleCards.length
+    );
+
+
+  return eligibleCards[index];
+
 }
 
 
@@ -88,30 +184,54 @@ function chooseRandomCard() {
  * reveal the selected card.
  */
 function drawCard() {
-  if (isShuffling || cards.length === 0) {
+
+  if (
+    isShuffling ||
+    cards.length === 0
+  ) {
     return;
   }
+
 
   isShuffling = true;
 
   cardElement.classList.add("shuffling");
 
+
   setTimeout(() => {
 
-    const selectedCard = chooseRandomCard();
+    const selectedCard =
+      chooseRandomCard();
+
 
     showCard(selectedCard);
 
+
+    /*
+     * Remember current card for refresh.
+     */
     localStorage.setItem(
       STORAGE_KEY,
       selectedCard.id
     );
 
-    cardElement.classList.remove("shuffling");
+
+    /*
+     * Remember it for the 3-card exclusion.
+     */
+    rememberCard(
+      selectedCard.id
+    );
+
+
+    cardElement.classList.remove(
+      "shuffling"
+    );
 
     isShuffling = false;
 
   }, 500);
+
 }
 
 
@@ -119,10 +239,12 @@ function drawCard() {
  * Show the initial deck.
  */
 function showDeck() {
+
   deckView.classList.remove("hidden");
   cardView.classList.add("hidden");
 
   statusElement.textContent = "";
+
 }
 
 
@@ -130,18 +252,22 @@ function showDeck() {
  * Display a selected card.
  */
 function showCard(card) {
+
   cardText.textContent = card.text;
 
   deckView.classList.add("hidden");
   cardView.classList.remove("hidden");
 
   statusElement.textContent = "";
+
 }
+
 
 /*
  * Handle an empty deck gracefully.
  */
 function showEmptyDeck() {
+
   deckView.classList.add("hidden");
   cardView.classList.remove("hidden");
 
@@ -149,26 +275,39 @@ function showEmptyDeck() {
     "There are currently no cards in this deck.";
 
   statusElement.textContent = "";
+
 }
 
 
 /*
  * Touch/click interaction.
  */
-cardElement.addEventListener("click", drawCard);
+cardElement.addEventListener(
+  "click",
+  drawCard
+);
 
 
 /*
  * Keyboard accessibility.
  */
-cardElement.addEventListener("keydown", event => {
+cardElement.addEventListener(
+  "keydown",
+  event => {
 
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    drawCard();
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+
+      event.preventDefault();
+
+      drawCard();
+
+    }
+
   }
-
-});
+);
 
 
 /*
@@ -176,18 +315,23 @@ cardElement.addEventListener("keydown", event => {
  */
 if ("serviceWorker" in navigator) {
 
-  window.addEventListener("load", () => {
+  window.addEventListener(
+    "load",
+    () => {
 
-    navigator.serviceWorker
-      .register("./service-worker.js")
-      .catch(error => {
-        console.error(
-          "Service worker registration failed:",
-          error
-        );
-      });
+      navigator.serviceWorker
+        .register("./service-worker.js")
+        .catch(error => {
 
-  });
+          console.error(
+            "Service worker registration failed:",
+            error
+          );
+
+        });
+
+    }
+  );
 
 }
 
