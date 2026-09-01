@@ -171,15 +171,6 @@ body {
     0 15px 35px rgba(0, 0, 0, 0.4);
 }
 
-.card-view h1 {
-  margin: 0 0 22px;
-
-  font-family: Georgia, serif;
-
-  font-size: clamp(1.8rem, 8vw, 2.7rem);
-  line-height: 1.08;
-}
-
 .card-view p {
   margin: 0;
 
